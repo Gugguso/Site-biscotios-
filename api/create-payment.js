@@ -23,7 +23,9 @@ module.exports = async (req, res) => {
   if (!process.env.MP_ACCESS_TOKEN) return res.status(500).json({ error: "Mercado Pago ainda não foi configurado na Vercel." });
 
   try {
-    const { items, deliveryMethod, neighborhood } = req.body || {};
+    const body = req.body || {};
+    const items = body.items || body.cart;
+    const { deliveryMethod, neighborhood } = body;
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: "Pedido vazio." });
     if (!["retirada", "entrega"].includes(deliveryMethod)) return res.status(400).json({ error: "Forma de recebimento inválida." });
 

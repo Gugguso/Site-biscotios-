@@ -6,9 +6,48 @@ const pixCopy = document.querySelector("#pixCopy");
 const pixQrCode = document.querySelector("#pixQrCode");
 const copyPix = document.querySelector("#copyPix");
 const confirmPayment = document.querySelector("#confirmPayment");
+const cashOptions = document.querySelector("#cashOptions");
+const changeAmountField = document.querySelector("#changeAmountField");
+const changeAmount = document.querySelector("#changeAmount");
 const money = (value) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-let currentPaymentId = null;
-let statusTimer = null;
+
+const PIX_KEY = "19935170578";
+const PIX_MERCHANT_NAME = "BOLOS DABETH";
+const PIX_MERCHANT_CITY = "ARACAJU";
+
+function pixField(id, value) {
+  const text = String(value);
+  return `${id}${String(text.length).padStart(2, "0")}${text}`;
+}
+
+function crc16Ccitt(value) {
+  let crc = 0xffff;
+  for (const character of value) {
+    crc ^= character.charCodeAt(0) << 8;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+      crc &= 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+
+function createPixPayload(amount) {
+  const merchantAccount = pixField("00", "br.gov.bcb.pix") + pixField("01", PIX_KEY);
+  const additionalData = pixField("05", "***");
+  const payload = [
+    pixField("00", "01"),
+    pixField("26", merchantAccount),
+    pixField("52", "0000"),
+    pixField("53", "986"),
+    pixField("54", amount.toFixed(2)),
+    pixField("58", "BR"),
+    pixField("59", PIX_MERCHANT_NAME),
+    pixField("60", PIX_MERCHANT_CITY),
+    pixField("62", additionalData)
+  ].join("");
+  return `${payload}6304${crc16Ccitt(`${payload}6304`)}`;
+}
 
 function renderSummary() {
   if (!checkout || !checkout.cart?.length) {
@@ -19,61 +58,78 @@ function renderSummary() {
   const subtotal = checkout.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const total = subtotal + Number(checkout.shipping || 0);
   const delivery = checkout.deliveryMethod === "entrega"
-    ? `Entrega${checkout.neighborhood ? ` — ${checkout.neighborhood}` : ""}`
+    ? "Entrega — entrar em contato para combinar"
     : "Retirada na loja";
   summary.innerHTML = `<strong>Pedido:</strong> ${checkout.cart.map((item) => `${item.quantity}x ${item.name}`).join(", ")}<br><strong>Recebimento:</strong> ${delivery}<br><strong>Total:</strong> ${money(total)}`;
 }
 
-async function createPixPayment() {
-  if (currentPaymentId) return;
-  message.textContent = "Gerando cobrança Pix...";
-  confirmPayment.disabled = true;
-  const response = await fetch("/api/create-payment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(checkout)
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Não foi possível gerar o Pix.");
-  currentPaymentId = data.paymentId;
-  pixCopy.value = data.qrCode || "";
-  if (data.qrCodeBase64) {
-    pixQrCode.innerHTML = `<img src="data:image/png;base64,${data.qrCodeBase64}" alt="QR Code Pix">`;
-  } else if (window.QRCode && data.qrCode) {
-    new QRCode(pixQrCode, { text: data.qrCode, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
-  }
-  message.textContent = "Pix gerado. Aguardando confirmação do pagamento...";
-  confirmPayment.textContent = "Aguardando pagamento";
-  statusTimer = window.setInterval(checkPaymentStatus, 5000);
+function renderPix() {
+  const subtotal = checkout.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = subtotal + Number(checkout.shipping || 0);
+  const payload = createPixPayload(total);
+  pixCopy.value = payload;
+  pixQrCode.innerHTML = "";
+  new QRCode(pixQrCode, { text: payload, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+  message.textContent = "QR Code Pix gerado. Confira o recebimento no aplicativo do Nubank.";
 }
 
-async function checkPaymentStatus() {
-  const response = await fetch(`/api/payment-status?id=${encodeURIComponent(currentPaymentId)}`);
-  const data = await response.json();
-  if (data.status === "approved") {
-    window.clearInterval(statusTimer);
-    message.textContent = "Pagamento confirmado! Enviando pedido pelo WhatsApp...";
-    sendOrder("Pix confirmado");
+function getCashDetails() {
+  const changeOption = document.querySelector('input[name="changeNeeded"]:checked');
+  if (!changeOption) {
+    message.textContent = "Informe se vai precisar de troco.";
+    return null;
   }
+  if (changeOption.value === "nao") return "Não precisa de troco";
+  const amount = Number(changeAmount.value);
+  const total = checkout.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) + Number(checkout.shipping || 0);
+  if (!amount || amount <= 0) {
+    message.textContent = "Informe o valor que vai entregar para calcular o troco.";
+    changeAmount.focus();
+    return null;
+  }
+  if (amount < total) {
+    message.textContent = `O valor precisa ser igual ou maior que ${money(total)}.`;
+    changeAmount.focus();
+    return null;
+  }
+  return `Precisa de troco — vai pagar com ${money(amount)}`;
 }
 
 function sendOrder(payment) {
   const items = checkout.cart.map((item) => `• ${item.quantity}x ${item.name} - ${money(item.price * item.quantity)}`).join("\n");
   const total = checkout.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) + Number(checkout.shipping || 0);
   const destination = checkout.deliveryMethod === "entrega"
-    ? `Entrega\nBairro: ${checkout.neighborhood}\nFrete: ${checkout.shipping ? money(checkout.shipping) : "consultar por telefone"}`
+    ? "Entrega — entrar em contato para combinar endereço e frete"
     : "Retirada na loja";
-  const orderMessage = `Olá, bolosdabeth! Pedido pago:\n\n${items}\n\nForma de recebimento: ${destination}\nForma de pagamento: ${payment}\nTotal: ${money(total)}`;
-  window.setTimeout(() => { window.location.href = `https://wa.me/557999773727?text=${encodeURIComponent(orderMessage)}`; }, 500);
+  const cashDetails = payment === "Dinheiro" ? `\n${getCashDetails()}` : "";
+  const orderMessage = `Olá! Pedido bolosdabeth:\nProduto(s):\n${items}\nTotal: ${money(total)}\nPagamento: ${payment}${cashDetails}\nRecebimento: ${destination}`;
+  localStorage.setItem("bolosdabeth-pending-order", orderMessage);
+  window.location.href = "pedido-enviado.html";
 }
 
 document.querySelectorAll('input[name="paymentMethod"]').forEach((option) => {
-  option.addEventListener("change", async () => {
+  option.addEventListener("change", () => {
     const isPix = option.value === "Pix" && option.checked;
     pixPayment.classList.toggle("hidden", !isPix);
+    cashOptions.classList.toggle("hidden", isPix);
+    confirmPayment.innerHTML = isPix
+      ? "Já fiz o pagamento <span>→</span>"
+      : "Informar pedido pelo WhatsApp <span>→</span>";
     if (isPix) {
-      try { await createPixPayment(); } catch (error) { message.textContent = error.message; confirmPayment.disabled = false; }
+      document.querySelectorAll('input[name="changeNeeded"]').forEach((input) => { input.checked = false; });
+      changeAmount.value = "";
+      changeAmountField.classList.add("hidden");
     }
+    if (isPix) renderPix();
+    if (!isPix) message.textContent = "";
+  });
+});
+
+document.querySelectorAll('input[name="changeNeeded"]').forEach((option) => {
+  option.addEventListener("change", () => {
+    const needsChange = option.value === "sim" && option.checked;
+    changeAmountField.classList.toggle("hidden", !needsChange);
+    if (!needsChange) changeAmount.value = "";
   });
 });
 
@@ -86,9 +142,12 @@ copyPix.addEventListener("click", async () => {
 
 confirmPayment.addEventListener("click", () => {
   const selected = document.querySelector('input[name="paymentMethod"]:checked');
-  if (!selected) { message.textContent = "Selecione uma forma de pagamento."; return; }
-  if (selected.value === "Pix") { if (currentPaymentId) message.textContent = "Aguardando confirmação do Pix."; return; }
-  sendOrder(selected.value);
+  if (!selected) {
+    message.textContent = "Selecione uma forma de pagamento.";
+    return;
+  }
+  if (selected.value === "Dinheiro" && !getCashDetails()) return;
+  sendOrder(selected.value === "Pix" ? "Pix (conferir pagamento)" : selected.value);
 });
 
 renderSummary();

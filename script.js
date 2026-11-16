@@ -10,16 +10,12 @@ const shippingRow = document.querySelector("#shippingRow");
 const shippingTotal = document.querySelector("#shippingTotal");
 const cartToast = document.querySelector("#cartToast");
 const deliveryOptions = document.querySelectorAll('input[name="deliveryMethod"]');
-const neighborhoodField = document.querySelector("#neighborhoodField");
-const neighborhoodSelect = document.querySelector("#neighborhoodSelect");
 const phoneShippingNote = document.querySelector("#phoneShippingNote");
 
 const money = (value) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function getShipping() {
-  const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked');
-  if (!deliveryMethod || deliveryMethod.value !== "entrega") return 0;
-  return Number(neighborhoodSelect.selectedOptions[0]?.dataset.shipping || 0);
+  return 0;
 }
 
 function renderCart() {
@@ -108,16 +104,11 @@ document.querySelector("#checkoutButton").addEventListener("click", () => {
     window.alert("Escolha entre retirada na loja ou entrega.");
     return;
   }
-  if (deliveryMethod.value === "entrega" && !getShipping() && neighborhoodSelect.value !== "Outro bairro") {
-    window.alert("Selecione seu bairro para calcular o frete.");
-    neighborhoodSelect.focus();
-    return;
-  }
   localStorage.setItem("bolosdabeth-checkout", JSON.stringify({
     cart,
     deliveryMethod: deliveryMethod.value,
-    neighborhood: neighborhoodSelect.value,
-    shipping: getShipping()
+    neighborhood: "",
+    shipping: 0
   }));
   window.location.href = "pagamento.html";
 });
@@ -125,16 +116,9 @@ document.querySelector("#checkoutButton").addEventListener("click", () => {
 deliveryOptions.forEach((option) => {
   option.addEventListener("change", () => {
     const isDelivery = option.value === "entrega" && option.checked;
-    neighborhoodField.classList.toggle("hidden", !isDelivery);
-    if (!isDelivery) neighborhoodSelect.value = "";
-    phoneShippingNote.classList.add("hidden");
+    phoneShippingNote.classList.toggle("hidden", !isDelivery);
     renderCart();
   });
-});
-
-neighborhoodSelect.addEventListener("change", () => {
-  phoneShippingNote.classList.toggle("hidden", neighborhoodSelect.value !== "Outro bairro");
-  renderCart();
 });
 
 cartButton.addEventListener("click", openDrawer);

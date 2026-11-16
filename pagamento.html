@@ -45,22 +45,31 @@
     <section class="payment-card">
       <p class="eyebrow">finalizar pedido</p>
       <h1>Forma de pagamento</h1>
-      <p>Escolha como deseja pagar. No Pix, o pagamento será confirmado automaticamente.</p>
+      <p>Escolha como deseja pagar. No Pix, escaneie o QR Code e confira o pagamento no aplicativo do seu banco.</p>
       <div class="payment-summary" id="paymentSummary"></div>
       <fieldset class="payment-options">
         <legend>Selecione uma opção</legend>
         <label class="payment-option"><input class="payment-method" type="radio" name="paymentMethod" value="Pix"> Pix</label>
         <label class="payment-option"><input type="radio" name="paymentMethod" value="Dinheiro"> Dinheiro</label>
       </fieldset>
+      <fieldset class="payment-options hidden" id="cashOptions">
+        <legend>Troco</legend>
+        <label class="payment-option"><input type="radio" name="changeNeeded" value="nao"> Não vou precisar de troco</label>
+        <label class="payment-option"><input type="radio" name="changeNeeded" value="sim"> Vou precisar de troco</label>
+        <label class="hidden" id="changeAmountField" for="changeAmount">
+          Valor que vou pagar
+          <input id="changeAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 50,00">
+        </label>
+      </fieldset>
       <div class="pix-payment hidden" id="pixPayment">
         <strong>Pagamento via Pix</strong>
-        <p>Escaneie o QR Code ou copie o código Pix. O site verificará a confirmação automaticamente.</p>
+        <p>Escaneie o QR Code ou copie o código Pix. A confirmação do pagamento será feita manualmente.</p>
         <div id="pixQrCode" aria-label="QR Code Pix"></div>
         <textarea class="pix-copy" id="pixCopy" readonly placeholder="O código será gerado após escolher Pix."></textarea>
         <button class="copy-pix" id="copyPix" type="button">Copiar código Pix</button>
       </div>
       <div class="payment-actions">
-        <button class="primary-button" id="confirmPayment" type="button">Confirmar pedido <span>→</span></button>
+        <button class="primary-button" id="confirmPayment" type="button">Já fiz o pagamento <span>→</span></button>
       </div>
       <p class="payment-message" id="paymentMessage" aria-live="polite"></p>
     </section>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedido | bolosdabeth</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .order-page { min-height: calc(100vh - 72px); display: grid; place-items: center; padding: 28px 0; }
+    .order-card { width: min(560px, 100%); padding: 34px; background: var(--paper); box-shadow: var(--shadow); text-align: center; }
+    .order-card h1 { margin: 8px 0 14px; font-size: 40px; }
+    .order-card p { color: var(--muted); line-height: 1.6; }
+    .order-card .primary-button { width: 100%; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <main class="order-page">
+    <section class="order-card">
+      <p class="eyebrow">quase concluído</p>
+      <h1>Pagamento informado</h1>
+      <p>Confira se o Pix foi concluído no seu banco. Depois, envie o pedido pelo WhatsApp para combinarmos a retirada ou a entrega.</p>
+      <a class="primary-button" id="sendOrder" href="#">Enviar pedido pelo WhatsApp <span>→</span></a>
+    </section>
+  </main>
+  <script>
+    const order = localStorage.getItem("bolosdabeth-pending-order");
+    const sendOrder = document.querySelector("#sendOrder");
+    if (order) {
+      sendOrder.href = `https://wa.me/557999773727?text=${encodeURIComponent(order)}`;
+    } else {
+      sendOrder.removeAttribute("href");
+      sendOrder.textContent = "Pedido não encontrado";
+    }
+  </script>
+</body>
+</html>
