@@ -13,6 +13,11 @@ const products = {
     image: "assets/argolinha-de-manteiga.jpeg",
     price: 20,
     description: "Argolinhas amanteigadas, delicadas e levemente açucaradas, preparadas sob encomenda."
+  },
+  "Pastelzinho de Goiabada": {
+    image: "assets/pastelzinho-de-goiabada.jpeg",
+    price: 20,
+    description: "Pastelzinhos amanteigados recheados com goiabada, preparados sob encomenda."
   }
 };
 
